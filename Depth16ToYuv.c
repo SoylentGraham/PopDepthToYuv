@@ -1,8 +1,13 @@
 //	"C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.24.28314\bin\Hostx64\x64\cl.exe" Depth16ToYuv.c /FeDepth16ToYuv.dll /O2 /link /LIBPATH:"C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.24.28314\lib\x64" /LIBPATH:"D:\Windows Kits\10\Lib\10.0.18362.0\um\x64" /DLL /LIBPATH:"D:\Windows Kits\10\Lib\10.0.18362.0\ucrt\x64"
+#if defined(_MSC_VER)
 #define EXPORT	__declspec( dllexport )
+#else
+#define EXPORT 
+#endif
 
 typedef unsigned short uint16_t;
 typedef unsigned char uint8_t;
+typedef unsigned int uint32_t;
 
 int Floor(float f)
 {
@@ -61,7 +66,7 @@ struct uint8_2
 	uint8_t y;
 };
 
-EXPORT void Depth16ToYuv(uint16_t* Depth16Plane, uint8_t* Yuv8_8_8Plane, int Width, int Height, int DepthMin, int DepthMax)
+EXPORT void Depth16ToYuv(uint16_t* Depth16Plane, uint8_t* Yuv8_8_8Plane, uint32_t Width, uint32_t Height, uint32_t DepthMin, uint32_t DepthMax,float* UvRanges, uint32_t UvRangeCount)
 {
 	int LumaSize = Width * Height;
 	int LumaWidth = Width;
@@ -71,11 +76,16 @@ EXPORT void Depth16ToYuv(uint16_t* Depth16Plane, uint8_t* Yuv8_8_8Plane, int Wid
 	int DepthSize = Width * Height;
 	int YuvSize = LumaSize + ChromaSize + ChromaSize;
 
-#define RangeCount  5
-	struct float2 UvRanges[RangeCount] = { {0,0}, {0.25,0.25}, {0.5,0.5}, {0.75,0.75}, {1,1} };
-	uint8_t URange8s[RangeCount] = { 0,64,128,196,255 };
-	uint8_t VRange8s[RangeCount] = { 0,64,128,196,255 };
-	int RangeLengthMin1 = RangeCount - 1;
+#define MAX_UVRANGECOUNT	(100*100)
+	struct float2* UvRange2s = (struct float2*)UvRanges;
+	uint8_t URange8s[MAX_UVRANGECOUNT];
+	uint8_t VRange8s[MAX_UVRANGECOUNT];
+	for (int i = 0; i < UvRangeCount; i++)
+	{
+		URange8s[i] = (uint8_t)(UvRange2s[i].x * 255.0f);
+		VRange8s[i] = (uint8_t)(UvRange2s[i].y * 255.0f);
+	}
+	int RangeLengthMin1 = UvRangeCount - 1;
 
 	for (int i = 0; i < DepthSize; i++)
 	{

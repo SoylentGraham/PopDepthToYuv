@@ -1,8 +1,6 @@
 
+# C intermediate/build files
 *.dll
-
-Depth16ToYuv.exp
-
-Depth16ToYuv.lib
-
-Depth16ToYuv.obj
+*.exp
+*.lib
+*.obj

@@ -9,6 +9,8 @@ typedef unsigned short uint16_t;
 typedef unsigned char uint8_t;
 typedef unsigned int uint32_t;
 
+#define ERROR_VALUE	255
+
 int Floor(float f)
 {
 	return (int)f;
@@ -66,7 +68,20 @@ struct uint8_2
 	uint8_t y;
 };
 
-EXPORT void Depth16ToYuv(uint16_t* Depth16Plane, uint8_t* Yuv8_8_8Plane, uint32_t Width, uint32_t Height, uint32_t DepthMin, uint32_t DepthMax,float* UvRanges, uint32_t UvRangeCount)
+EXPORT void SetYuvError(uint8_t* Yuv8_8_8Plane, uint32_t Width, uint32_t Height, uint8_t ErrorValue)
+{
+	int LumaSize = Width * Height;
+	int LumaWidth = Width;
+	int ChromaWidth = Width / 2;
+	int ChromaHeight = Height / 2;
+	int ChromaSize = ChromaWidth * ChromaHeight;
+	int DepthSize = Width * Height;
+	int YuvSize = LumaSize + ChromaSize + ChromaSize;
+	for (int i = 0; i < YuvSize; i++)
+		Yuv8_8_8Plane[i] = ErrorValue;
+}
+
+EXPORT void Depth16ToYuv(uint16_t* Depth16Plane, uint8_t* Yuv8_8_8Plane, uint32_t Width, uint32_t Height, uint32_t DepthMin, uint32_t DepthMax, float* UvRanges, uint32_t UvRangeCount)
 {
 	int LumaSize = Width * Height;
 	int LumaWidth = Width;
@@ -76,15 +91,22 @@ EXPORT void Depth16ToYuv(uint16_t* Depth16Plane, uint8_t* Yuv8_8_8Plane, uint32_
 	int DepthSize = Width * Height;
 	int YuvSize = LumaSize + ChromaSize + ChromaSize;
 
-#define MAX_UVRANGECOUNT	(100*100)
-	struct float2* UvRange2s = (struct float2*)UvRanges;
+#define MAX_UVRANGECOUNT	(10)
+	//struct float2* UvRange2s = (struct float2*)UvRanges;
 	uint8_t URange8s[MAX_UVRANGECOUNT];
 	uint8_t VRange8s[MAX_UVRANGECOUNT];
+	if (UvRangeCount > MAX_UVRANGECOUNT)
+		UvRangeCount = MAX_UVRANGECOUNT;
+
 	for (int i = 0; i < UvRangeCount; i++)
 	{
-		URange8s[i] = (uint8_t)(UvRange2s[i].x * 255.0f);
-		VRange8s[i] = (uint8_t)(UvRange2s[i].y * 255.0f);
+		//URange8s[i] = (uint8_t)(UvRange2s[i].x * 255.0f);
+		//VRange8s[i] = (uint8_t)(UvRange2s[i].y * 255.0f);
+		URange8s[i] = (uint8_t)(UvRanges[(i * 2) + 0] * 255.0f);
+		VRange8s[i] = (uint8_t)(UvRanges[(i * 2) + 1] * 255.0f);
 	}
+	if (UvRangeCount < 1)
+		UvRangeCount = 1;
 	int RangeLengthMin1 = UvRangeCount - 1;
 
 	for (int i = 0; i < DepthSize; i++)
@@ -94,11 +116,15 @@ EXPORT void Depth16ToYuv(uint16_t* Depth16Plane, uint8_t* Yuv8_8_8Plane, uint32_
 		int DepthIndex = i;
 		int Depth16 = Depth16Plane[DepthIndex];
 		int LumaIndex = DepthIndex;
-		int ChromaUIndex = LumaSize + GetChromaIndex(x, y, LumaWidth);
-		int ChromaVIndex = LumaSize + ChromaSize + GetChromaIndex(x, y, LumaWidth);
+		int ChromaIndex = GetChromaIndex(x, y, LumaWidth);
+		int ChromaUIndex = LumaSize + ChromaIndex;
+		int ChromaVIndex = LumaSize + ChromaSize + ChromaIndex;
 
 		if (ChromaUIndex >= YuvSize || ChromaVIndex >= YuvSize)
-			continue;
+		{
+			SetYuvError(Yuv8_8_8Plane, Width, Height,ERROR_VALUE);
+			return;
+		}
 
 		float Depthf = RangeClamped(DepthMin, DepthMax, Depth16);
 		//float Depthf = Range( DepthMin, DepthMax, Depth16 );
@@ -121,6 +147,11 @@ EXPORT void Depth16ToYuv(uint16_t* Depth16Plane, uint8_t* Yuv8_8_8Plane, uint32_
 		uint8_t Luma = Remain * 255.f;
 		//uint8_t Luma = min(Depthf * 255.f,255);
 
+		if (RangeIndex <0 || RangeIndex >= UvRangeCount)
+		{
+			SetYuvError(Yuv8_8_8Plane, Width, Height, ERROR_VALUE);
+			return;
+		}
 		Yuv8_8_8Plane[LumaIndex] = Luma;
 		Yuv8_8_8Plane[ChromaUIndex] = URange8s[RangeIndex];
 		Yuv8_8_8Plane[ChromaVIndex] = VRange8s[RangeIndex];

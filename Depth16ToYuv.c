@@ -189,7 +189,9 @@ EXPORT void Depth16ToYuv(uint16_t* Depth16Plane,uint32_t Width, uint32_t Height,
 			return;
 		}
 
-		WriteYuv(x, y, Luma, URange8s[RangeIndex], VRange8s[RangeIndex], This );
+		auto u = URange8s[RangeIndex];
+		auto v = VRange8s[RangeIndex];
+		WriteYuv(x, y, Luma, u, v, This );
 	}
 }
 

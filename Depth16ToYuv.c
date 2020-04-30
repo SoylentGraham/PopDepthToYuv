@@ -89,39 +89,46 @@ uint32_t SoyMath_GetNextPower2(uint32_t x)
 	return x+1;
 }
 
+const uint32_t MaxUvRangeCount = 10 * 10;
+
+EXPORT uint32_t GetUvRangeWidthHeight(int32_t UvRangeCount)
+{
+	//	get WxH for this size
+	if (UvRangeCount < 2 * 2)	
+		return 1;
+	if (UvRangeCount <= 2 * 2)	return 2;
+	if (UvRangeCount <= 3 * 3)	return 3;
+	if (UvRangeCount <= 4 * 4)	return 4;
+	if (UvRangeCount <= 5 * 5)	return 5;
+	if (UvRangeCount <= 6 * 6)	return 6;
+	if (UvRangeCount <= 7 * 7)	return 7;
+	if (UvRangeCount <= 8 * 8)	return 8;
+	if (UvRangeCount <= 9 * 9)	return 9;
+	//if (UvRangeCount <= 10 * 10)
+		return 10;
+}
 
 //	returns the max UV range count
 EXPORT uint32_t GetUvRanges8(int32_t UvRangeCount,uint8_t* URanges,uint8_t* VRanges,uint32_t RangesSize)
 {
-	if ( UvRangeCount < 1 )
-		UvRangeCount = 1;
-	
-	//	pick the next square number up so we can do a grid of uvs
-	uint32_t UvMapCount = SoyMath_GetNextPower2(UvRangeCount);
-	if (UvMapCount > RangesSize)
-	{
-		//	gr: do we need to make this next power down?
-		//	gr: can I just do
-		//	UvMapCount = UvMapCount/2
-		//	?
-		UvMapCount = RangesSize;
-	}
-	
+	auto Width = GetUvRangeWidthHeight(UvRangeCount);
+	auto Height = Width;
+	UvRangeCount = Width * Height;
+
 	//	generate the uvs
-	int w = sqrt(UvMapCount);
-	for (int i = 0; i <UvMapCount; i++)
+	for (int i = 0; i < UvRangeCount; i++)
 	{
-		int x = i % w;
-		int y = i / w;
-		float u = x / static_cast<float>(w-1);
-		float v = y / static_cast<float>(w-1);
+		int x = i % Width;
+		int y = i / Width;
+		float u = x / static_cast<float>(Width -1);
+		float v = y / static_cast<float>(Width -1);
 		int u8 = u * 255.0f;
 		int v8 = v * 255.0f;
 		URanges[i] = u8;
 		VRanges[i] = v8;
 	}
 	
-	return UvMapCount;
+	return UvRangeCount;
 }
 
 typedef void WriteYuv_t(uint32_t x,uint32_t y,uint8_t Luma,uint8_t ChromaU,uint8_t ChromaV,void* This);
@@ -142,15 +149,10 @@ EXPORT void Depth16ToYuv(uint16_t* Depth16Plane,uint32_t Width, uint32_t Height,
 	int YuvSize = LumaSize + ChromaSize + ChromaSize;
 
 	//	make our own YUV range count
-#define MAX_UVMAPCOUNT	(32)
-	uint8_t URange8s[MAX_UVMAPCOUNT];
-	uint8_t VRange8s[MAX_UVMAPCOUNT];
-	uint32_t UvMapCount = GetUvRanges8(UvRangeCount, URange8s, VRange8s, MAX_UVMAPCOUNT);
+	uint8_t URange8s[MaxUvRangeCount];
+	uint8_t VRange8s[MaxUvRangeCount];
+	UvRangeCount = GetUvRanges8(UvRangeCount, URange8s, VRange8s, MaxUvRangeCount);
 
-	if (UvRangeCount > UvMapCount)
-		UvRangeCount = UvMapCount;
-	if (UvRangeCount < 1)
-		UvRangeCount = 1;
 	int RangeLengthMin1 = UvRangeCount - 1;
 
 	for (int i = 0; i < DepthSize; i++)

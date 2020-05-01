@@ -9,7 +9,7 @@ typedef unsigned short uint16_t;
 typedef unsigned char uint8_t;
 typedef unsigned int uint32_t;
 
-#define ERROR_VALUE	255
+#define TEST_OUTPUT
 
 int Floor(float f)
 {
@@ -61,18 +61,6 @@ struct EncodeParams_t
 	uint16_t ChromaRangeCount = 1;
 };
 
-EXPORT void SetYuvError(uint8_t* Yuv8_8_8Plane, uint32_t Width, uint32_t Height, uint8_t ErrorValue)
-{
-	int LumaSize = Width * Height;
-	int LumaWidth = Width;
-	int ChromaWidth = Width / 2;
-	int ChromaHeight = Height / 2;
-	int ChromaSize = ChromaWidth * ChromaHeight;
-	int DepthSize = Width * Height;
-	int YuvSize = LumaSize + ChromaSize + ChromaSize;
-	for (int i = 0; i < YuvSize; i++)
-		Yuv8_8_8Plane[i] = ErrorValue;
-}
 
 uint32_t SoyMath_GetNextPower2(uint32_t x)
 {
@@ -131,10 +119,17 @@ EXPORT uint32_t GetUvRanges8(int32_t UvRangeCount,uint8_t* URanges,uint8_t* VRan
 	return UvRangeCount;
 }
 
-typedef void WriteYuv_t(uint32_t x,uint32_t y,uint8_t Luma,uint8_t ChromaU,uint8_t ChromaV,void* This);
+//	callbacks
+typedef void OnWriteYuv_t(uint32_t x,uint32_t y,uint8_t Luma,uint8_t ChromaU,uint8_t ChromaV,void* This);
+typedef void OnError_t(const char* Error,void* This);
 
+//	unit-test function
+EXPORT uint16_t YuvToDepth(uint8_t Luma,uint8_t ChromaU,uint8_t ChromaV,EncodeParams_t& Params)
+{
+	return 0;
+}
 
-EXPORT void Depth16ToYuv(uint16_t* Depth16Plane,uint32_t Width, uint32_t Height, EncodeParams_t Params,WriteYuv_t* WriteYuv,void* This)
+EXPORT void Depth16ToYuv(uint16_t* Depth16Plane,uint32_t Width, uint32_t Height, EncodeParams_t Params,OnWriteYuv_t* WriteYuv,OnError_t* OnError,void* This)
 {
 	auto DepthMin = Params.DepthMin;
 	auto DepthMax = Params.DepthMax;
@@ -187,13 +182,23 @@ EXPORT void Depth16ToYuv(uint16_t* Depth16Plane,uint32_t Width, uint32_t Height,
 
 		if (RangeIndex < 0 || RangeIndex >= UvRangeCount)
 		{
-			//SetYuvError(Yuv8_8_8Plane, Width, Height, ERROR_VALUE);
+			if ( OnError )
+				OnError("Calculated range out of bounds",This);
 			return;
 		}
 
 		auto u = URange8s[RangeIndex];
 		auto v = VRange8s[RangeIndex];
 		WriteYuv(x, y, Luma, u, v, This );
+		
+#if defined(TEST_OUTPUT)
+		auto TestDepth = YuvToDepth( Luma, u, v, Params );
+		if ( TestDepth != Depth16 )
+		{
+			if ( OnError )
+				OnError("Depth->Yuv->Depth failed",This);
+		}
+#endif
 	}
 }
 

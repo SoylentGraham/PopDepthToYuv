@@ -26,6 +26,11 @@ int Max(int a, int b)
 	return (a > b) ? a : b;
 }
 
+float Lerp(float Start,float End,float Time)
+{
+	return Start + ((End-Start)*Time);
+}
+
 float Range(float Min, float Max, float Value)
 {
 	return (Value - Min) / (Max - Min);
@@ -126,7 +131,38 @@ typedef void OnError_t(const char* Error,void* This);
 //	unit-test function
 EXPORT uint16_t YuvToDepth(uint8_t Luma,uint8_t ChromaU,uint8_t ChromaV,EncodeParams_t& Params)
 {
-	return 0;
+	//	work out from 0 to max this uv points at
+	int Width = GetUvRangeWidthHeight(Params.ChromaRangeCount);
+	auto Height = Width;
+	int RangeMax = (Width*Height) - 1;
+
+	//	gr: emulate shader
+	float ChromaUv_x = ChromaU / 255.f;
+	float ChromaUv_y = ChromaV / 255.f;
+
+	//	in the encoder, u=x%width and /width, so scales back up to -1
+	float xf = ChromaUv_x * float(Width - 1);
+	float yf = ChromaUv_y * float(Height - 1);
+	//	we need the nearest, so we floor but go up a texel
+	int x = floor(xf + 0.5);
+	int y = floor(yf + 0.5);
+	
+	//	gr: this should be nearest, not floor so add half
+	//ChromaUv = floor(ChromaUv + float2(0.5, 0.5) );
+	int Index = x + (y*Width);
+		
+	float Indexf = Index / float(RangeMax);
+	float Nextf = (Index + 1) / float(RangeMax);
+	//return float2(Indexf, Nextf);
+
+	//	put into depth space
+	Indexf = Lerp( Params.DepthMin, Params.DepthMax, Indexf );
+	Nextf = Lerp( Params.DepthMin, Params.DepthMax, Nextf );
+	float Lumaf = Luma / 255.0f;
+	float Depth = Lerp( Indexf, Nextf, Lumaf );
+	uint16_t Depth16 = Depth;
+	
+	return Depth16;
 }
 
 EXPORT void Depth16ToYuv(uint16_t* Depth16Plane,uint32_t Width, uint32_t Height, EncodeParams_t Params,OnWriteYuv_t* WriteYuv,OnError_t* OnError,void* This)
@@ -158,6 +194,8 @@ EXPORT void Depth16ToYuv(uint16_t* Depth16Plane,uint32_t Width, uint32_t Height,
 		int Depth16 = Depth16Plane[DepthIndex];
 		
 		float Depthf = RangeClamped(DepthMin, DepthMax, Depth16);
+		//	gr: for testing, Depth16 might fall out of range
+		int Depth16Clamped = Lerp( DepthMin, DepthMax, Depthf );
 		//float Depthf = Range( DepthMin, DepthMax, Depth16 );
 
 		//	split value into Distance Chunk(uv range) and 
@@ -193,10 +231,36 @@ EXPORT void Depth16ToYuv(uint16_t* Depth16Plane,uint32_t Width, uint32_t Height,
 		
 #if defined(TEST_OUTPUT)
 		auto TestDepth = YuvToDepth( Luma, u, v, Params );
-		if ( TestDepth != Depth16 )
+		if ( TestDepth != Depth16Clamped )
 		{
-			if ( OnError )
-				OnError("Depth->Yuv->Depth failed",This);
+			//	we should be able to figure out expected data loss (ie, tolerance)
+			//	if this is > 1 then we're expecting data loss
+			auto Tolerancef = (DepthMax-DepthMin) / (UvRangeCount * 255.0f);
+			if ( abs(TestDepth-Depth16Clamped) > Tolerancef )
+			{
+				TestDepth = YuvToDepth( Luma, u, v, Params );
+				if ( OnError )
+				{
+					//	customise error
+					auto Diff = TestDepth-Depth16Clamped;
+					char ErrorStr[] = "Depth->Yuv->Depth failed [+XXXXX]";
+					ErrorStr[26] = (Diff<0) ? '-' : '+';
+					Diff = abs(Diff);
+					ErrorStr[27] = '0' + ((Diff / 10000)%10);
+					ErrorStr[28] = '0' + ((Diff / 1000)%10);
+					ErrorStr[29] = '0' + ((Diff / 100)%10);
+					ErrorStr[30] = '0' + ((Diff / 10)%10);
+					ErrorStr[31] = '0' + ((Diff / 1)%10);
+					//	swap leading zeros for spaces
+					for ( auto i=27;	i<31;	i++ )
+					{
+						if ( ErrorStr[i] != '0' )
+							break;
+						ErrorStr[i] = ' ';
+					}
+					OnError(ErrorStr,This);
+				}
+			}
 		}
 #endif
 	}

@@ -236,7 +236,8 @@ EXPORT void Depth16ToYuv(uint16_t* Depth16Plane,uint32_t Width, uint32_t Height,
 			//	we should be able to figure out expected data loss (ie, tolerance)
 			//	if this is > 1 then we're expecting data loss
 			auto Tolerancef = (DepthMax-DepthMin) / (UvRangeCount * 255.0f);
-			if ( abs(TestDepth-Depth16Clamped) > Tolerancef )
+			auto Tolerance = static_cast<int>(Tolerancef)+1;
+			if ( abs(TestDepth-Depth16Clamped) > Tolerance )
 			{
 				TestDepth = YuvToDepth( Luma, u, v, Params );
 				if ( OnError )

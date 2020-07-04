@@ -59,11 +59,13 @@ struct uint8_2
 	uint8_t y;
 };
 
+//	gr: are these all 16bit on purpose, for CAPI?
 struct EncodeParams_t
 {
 	uint16_t DepthMin = 0;
 	uint16_t DepthMax = 0xffff;
 	uint16_t ChromaRangeCount = 1;
+	uint16_t PingPongLuma = 0;
 };
 
 
@@ -206,12 +208,10 @@ EXPORT void Depth16ToYuv(uint16_t* Depth16Plane,uint32_t Width, uint32_t Height,
 		float Remain = DepthScaled - Floor(DepthScaled);
 		RangeIndex = Min(RangeIndex, RangeLengthMin1);
 
-		/*
-				//	make luma go 0-1 1-0 0-1 so luma image wont have edges for compression
-				if (Params.PingPongLuma)
-					if (RangeIndex & 1)
-						Remain = 1 - Remain;
-		*/
+		//	make luma go 0-1 1-0 0-1 so luma image wont have edges for compression
+		if (Params.PingPongLuma)
+			if (RangeIndex & 1)
+				Remain = 1 - Remain;
 
 		//	something wrong with RangeIndex, manually setting an index works
 		//	but ANYTHING calculated seems to result in 0
@@ -306,12 +306,10 @@ EXPORT void DepthfToYuv(float* DepthfPlane,uint32_t Width, uint32_t Height, Enco
 		float Remain = DepthScaled - Floor(DepthScaled);
 		RangeIndex = Min(RangeIndex, RangeLengthMin1);
 		
-		/*
-		 //	make luma go 0-1 1-0 0-1 so luma image wont have edges for compression
-		 if (Params.PingPongLuma)
-		 if (RangeIndex & 1)
-		 Remain = 1 - Remain;
-		 */
+		//	make luma go 0-1 1-0 0-1 so luma image wont have edges for compression
+		if (Params.PingPongLuma)
+			if (RangeIndex & 1)
+				Remain = 1 - Remain;
 		
 		//	something wrong with RangeIndex, manually setting an index works
 		//	but ANYTHING calculated seems to result in 0

@@ -26,6 +26,16 @@ int Max(int a, int b)
 	return (a > b) ? a : b;
 }
 
+float Minf(float a, float b)
+{
+	return (a < b) ? a : b;
+}
+
+float Maxf(float a, float b)
+{
+	return (a > b) ? a : b;
+}
+
 float Lerp(float Start,float End,float Time)
 {
 	return Start + ((End-Start)*Time);
@@ -39,10 +49,8 @@ float Range(float Min, float Max, float Value)
 float RangeClamped(float Min, float Max, float Value)
 {
 	float f = Range(Min, Max, Value);
-	if (f < 0)
-		return 0;
-	if (f > 1)
-		return 1;
+	f = Maxf( f, 0.0f );
+	f = Minf( f, 1.0f );
 	return f;
 }
 

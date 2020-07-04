@@ -267,6 +267,106 @@ EXPORT void Depth16ToYuv(uint16_t* Depth16Plane,uint32_t Width, uint32_t Height,
 	}
 }
 
+
+EXPORT void DepthfToYuv(float* DepthfPlane,uint32_t Width, uint32_t Height, EncodeParams_t Params,OnWriteYuv_t* WriteYuv,OnError_t* OnError,void* This)
+{
+	auto DepthMin = Params.DepthMin;
+	auto DepthMax = Params.DepthMax;
+	auto UvRangeCount = Params.ChromaRangeCount;
+	
+	int LumaSize = Width * Height;
+	int LumaWidth = Width;
+	int ChromaWidth = Width / 2;
+	int ChromaHeight = Height / 2;
+	int ChromaSize = ChromaWidth * ChromaHeight;
+	int DepthSize = Width * Height;
+	int YuvSize = LumaSize + ChromaSize + ChromaSize;
+	
+	//	make our own YUV range count
+	uint8_t URange8s[MaxUvRangeCount];
+	uint8_t VRange8s[MaxUvRangeCount];
+	UvRangeCount = GetUvRanges8(UvRangeCount, URange8s, VRange8s, MaxUvRangeCount);
+	
+	int RangeLengthMin1 = UvRangeCount - 1;
+	
+	for (int i = 0; i < DepthSize; i++)
+	{
+		int x = i % Width;
+		int y = i / Width;
+		int DepthIndex = i;
+		float Depthf = DepthfPlane[DepthIndex];
+		
+		Depthf = RangeClamped(DepthMin, DepthMax, Depthf);
+
+		//	split value into Distance Chunk(uv range) and
+		//	it's high-resolution normalised/quantisied value inside (remain)
+		float DepthScaled = Depthf * (float)Max(RangeLengthMin1, 1);
+		int RangeIndex = Floor(DepthScaled);
+		//	float Remain = DepthScaled - RangeIndex;
+		float Remain = DepthScaled - Floor(DepthScaled);
+		RangeIndex = Min(RangeIndex, RangeLengthMin1);
+		
+		/*
+		 //	make luma go 0-1 1-0 0-1 so luma image wont have edges for compression
+		 if (Params.PingPongLuma)
+		 if (RangeIndex & 1)
+		 Remain = 1 - Remain;
+		 */
+		
+		//	something wrong with RangeIndex, manually setting an index works
+		//	but ANYTHING calculated seems to result in 0
+		uint8_t Luma = Remain * 255.f;
+		//uint8_t Luma = min(Depthf * 255.f,255);
+		
+		if (RangeIndex < 0 || RangeIndex >= UvRangeCount)
+		{
+			if ( OnError )
+			OnError("Calculated range out of bounds",This);
+			return;
+		}
+		
+		auto u = URange8s[RangeIndex];
+		auto v = VRange8s[RangeIndex];
+		WriteYuv(x, y, Luma, u, v, This );
+		
+#if defined(TEST_OUTPUT)
+		auto TestDepth = YuvToDepth( Luma, u, v, Params );
+		if ( TestDepth != Depth16Clamped )
+		{
+			//	we should be able to figure out expected data loss (ie, tolerance)
+			//	if this is > 1 then we're expecting data loss
+			auto Tolerancef = (DepthMax-DepthMin) / (UvRangeCount * 255.0f);
+			auto Tolerance = static_cast<int>(Tolerancef)+1;
+			if ( abs(TestDepth-Depth16Clamped) > Tolerance )
+			{
+				TestDepth = YuvToDepth( Luma, u, v, Params );
+				if ( OnError )
+				{
+					//	customise error
+					auto Diff = TestDepth-Depth16Clamped;
+					char ErrorStr[] = "Depth->Yuv->Depth failed [+XXXXX]";
+					ErrorStr[26] = (Diff<0) ? '-' : '+';
+					Diff = abs(Diff);
+					ErrorStr[27] = '0' + ((Diff / 10000)%10);
+					ErrorStr[28] = '0' + ((Diff / 1000)%10);
+					ErrorStr[29] = '0' + ((Diff / 100)%10);
+					ErrorStr[30] = '0' + ((Diff / 10)%10);
+					ErrorStr[31] = '0' + ((Diff / 1)%10);
+					//	swap leading zeros for spaces
+					for ( auto i=27;	i<31;	i++ )
+					{
+						if ( ErrorStr[i] != '0' )
+						break;
+						ErrorStr[i] = ' ';
+					}
+					OnError(ErrorStr,This);
+				}
+			}
+		}
+#endif
+	}
+}
+
 /*
 EXPORT void Depth16ToYuv_8_8_8(uint16_t* Depth16Plane, uint8_t* Yuv8_8_8Plane, uint32_t Width, uint32_t Height, uint32_t DepthMin, uint32_t DepthMax,uint16_t ChromaRangeCount)
 {

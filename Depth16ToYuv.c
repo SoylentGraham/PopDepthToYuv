@@ -154,8 +154,8 @@ EXPORT uint16_t YuvToDepth(uint8_t Luma,uint8_t ChromaU,uint8_t ChromaV,EncodePa
 	float xf = ChromaUv_x * float(Width - 1);
 	float yf = ChromaUv_y * float(Height - 1);
 	//	we need the nearest, so we floor but go up a texel
-	int x = floor(xf + 0.5);
-	int y = floor(yf + 0.5);
+	int x = Floor(xf + 0.5);
+	int y = Floor(yf + 0.5);
 	
 	//	gr: this should be nearest, not floor so add half
 	//ChromaUv = floor(ChromaUv + float2(0.5, 0.5) );

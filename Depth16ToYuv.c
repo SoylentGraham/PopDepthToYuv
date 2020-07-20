@@ -1,9 +1,12 @@
 //	"C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.24.28314\bin\Hostx64\x64\cl.exe" Depth16ToYuv.c /FeDepth16ToYuv.dll /O2 /link /LIBPATH:"C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.24.28314\lib\x64" /LIBPATH:"D:\Windows Kits\10\Lib\10.0.18362.0\um\x64" /DLL /LIBPATH:"D:\Windows Kits\10\Lib\10.0.18362.0\ucrt\x64"
 #if defined(_MSC_VER)
-#define EXPORT	__declspec( dllexport )
+#define EXPORT			__declspec( dllexport )
+#define FORCE_INLINE	__forceinline inline 
 #else
-#define EXPORT 
+#define EXPORT 			
+#define FORCE_INLINE	__attribute__((always_inline)) inline 
 #endif
+
 
 typedef unsigned short uint16_t;
 typedef unsigned char uint8_t;
@@ -11,42 +14,42 @@ typedef unsigned int uint32_t;
 
 //#define TEST_OUTPUT
 
-int Floor(float f)
+FORCE_INLINE int Floor(float f)
 {
 	return (int)f;
 }
 
-int Min(int a, int b)
+FORCE_INLINE int Min(int a, int b)
 {
 	return (a < b) ? a : b;
 }
 
-int Max(int a, int b)
+FORCE_INLINE int Max(int a, int b)
 {
 	return (a > b) ? a : b;
 }
 
-float Minf(float a, float b)
+FORCE_INLINE float Minf(float a, float b)
 {
 	return (a < b) ? a : b;
 }
 
-float Maxf(float a, float b)
+FORCE_INLINE float Maxf(float a, float b)
 {
 	return (a > b) ? a : b;
 }
 
-float Lerp(float Start,float End,float Time)
+FORCE_INLINE float Lerp(float Start,float End,float Time)
 {
 	return Start + ((End-Start)*Time);
 }
 
-float Range(float Min, float Max, float Value)
+FORCE_INLINE float Range(float Min, float Max, float Value)
 {
 	return (Value - Min) / (Max - Min);
 }
 
-float RangeClamped(float Min, float Max, float Value)
+FORCE_INLINE float RangeClamped(float Min, float Max, float Value)
 {
 	float f = Range(Min, Max, Value);
 	f = Maxf( f, 0.0f );
@@ -226,12 +229,14 @@ EXPORT void Depth16ToYuv(uint16_t* Depth16Plane,uint32_t Width, uint32_t Height,
 		uint8_t Luma = Remain * 255.f;
 		//uint8_t Luma = min(Depthf * 255.f,255);
 
+#if defined(TEST_OUTPUT)
 		if (RangeIndex < 0 || RangeIndex >= UvRangeCount)
 		{
 			if ( OnError )
 				OnError("Calculated range out of bounds",This);
 			return;
 		}
+#endif
 
 		auto u = URange8s[RangeIndex];
 		auto v = VRange8s[RangeIndex];

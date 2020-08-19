@@ -1,7 +1,7 @@
 //	"C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.24.28314\bin\Hostx64\x64\cl.exe" Depth16ToYuv.c /FeDepth16ToYuv.dll /O2 /link /LIBPATH:"C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.24.28314\lib\x64" /LIBPATH:"D:\Windows Kits\10\Lib\10.0.18362.0\um\x64" /DLL /LIBPATH:"D:\Windows Kits\10\Lib\10.0.18362.0\ucrt\x64"
 #if defined(_MSC_VER)
 #define EXPORT			__declspec( dllexport )
-#define FORCE_INLINE	__forceinline inline 
+#define FORCE_INLINE	__forceinline 
 #else
 #define EXPORT 			
 #define FORCE_INLINE	__attribute__((always_inline)) inline 
@@ -70,7 +70,7 @@ struct uint8_2
 	uint8_t y;
 };
 
-//	gr: are these all 16bit on purpose, for CAPI?
+//	gr: are these all 16bit on purpose, for CAPI? I think that might have been a quick hack originall for c# interop
 struct EncodeParams_t
 {
 	uint16_t DepthMin = 0;

@@ -11,6 +11,7 @@
 typedef unsigned short uint16_t;
 typedef unsigned char uint8_t;
 typedef unsigned int uint32_t;
+typedef int int32_t;
 
 //#define TEST_OUTPUT
 
@@ -477,3 +478,5 @@ EXPORT void Depth16ToYuv_8_8_8(uint16_t* Depth16Plane, uint8_t* Yuv8_8_8Plane, u
 	}
 }
 */
+
+
